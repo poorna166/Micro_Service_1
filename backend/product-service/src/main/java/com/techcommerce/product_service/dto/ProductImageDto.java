@@ -1,8 +1,6 @@
 package com.techcommerce.product_service.dto;
 
-import com.fasterxml.jackson.core.JsonToken;
 import com.techcommerce.product_service.model.Product;
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
