@@ -1,0 +1,25 @@
+
+spring:
+  application:
+    name: product-service
+  datasource:
+    # Added allowPublicKeyRetrieval to permit the MySQL driver to fetch the RSA public key
+    # when using caching_sha2_password auth (MySQL 8+). If you prefer, you can change the
+    # user authentication to mysql_native_password instead on the server side.
+    url: jdbc:mysql://localhost:3306/productdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: user2
+    password: pass123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+ 
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8081

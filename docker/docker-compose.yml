@@ -1,0 +1,106 @@
+version: "3.8"
+
+services:
+  user-mysql:
+    image: mysql:latest
+    container_name: user_mysql_container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: userdb
+      MYSQL_USER: user1
+      MYSQL_PASSWORD: pass123
+    ports:
+      - "3306:3306"
+    volumes:
+      - user_mysql_data:/var/lib/mysql
+
+  product-mysql:
+    image: mysql:latest
+    container_name: product_mysql_container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: productdb
+      MYSQL_USER: user2
+      MYSQL_PASSWORD: pass123
+    ports:
+      - "3308:3306"
+    volumes:
+      - product_mysql_data:/var/lib/mysql
+
+  cart-mysql:
+    image: mysql:latest
+    container_name: cart_mysql_container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: cartdb
+      MYSQL_USER: user3
+      MYSQL_PASSWORD: pass123
+    ports:
+      - "3309:3306"
+    volumes:
+      - cart_mysql_data:/var/lib/mysql
+   
+  order-mysql:
+    image: mysql:latest
+    container_name: order_mysql_container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: orderdb
+      MYSQL_USER: user4
+      MYSQL_PASSWORD: pass123
+    ports:
+      - "3303:3306"
+    volumes:
+      - order_mysql_data:/var/lib/mysql   
+  inventory-mysql:
+    image: mysql:latest
+    container_name: inventory_mysql_container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: inventorydb
+      MYSQL_USER: user5
+      MYSQL_PASSWORD: pass123
+    ports:
+      - "3302:3306"
+    volumes:
+      - inventory_mysql_data:/var/lib/mysql
+  payment-mysql:
+    image: mysql:latest
+    container_name: payment_mysql_container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: paymentdb
+      MYSQL_USER: user6
+      MYSQL_PASSWORD: pass123
+    ports:
+      - "3301:3306"
+    volumes:
+      - payment_mysql_data:/var/lib/mysql
+  notification-mysql:
+    image: mysql:latest
+    container_name: notification_mysql_container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: notificationdb
+      MYSQL_USER: user7
+      MYSQL_PASSWORD: pass123
+    ports:
+      - "3300:3306"
+    volumes:
+      - notification_mysql_data:/var/lib/mysql                    
+
+volumes:
+  user_mysql_data:
+  product_mysql_data:
+  cart_mysql_data:
+  order_mysql_data:
+  inventory_mysql_data:
+  payment_mysql_data:
+  notification_mysql_data:
