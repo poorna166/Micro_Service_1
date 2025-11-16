@@ -1,30 +1,57 @@
 package com.techcommerce.notification_service.model;
 
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.Data;
-
+/**
+ * Entity for storing notification records
+ */
 @Entity
 @Table(name = "notifications")
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Notification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
+    private Long userId;
+
+    @Column(nullable = false)
     private String type;     // EMAIL, SMS, PUSH
-    private String toUser;
-    private String subject;
-    @Column(columnDefinition = "TEXT")
+
+    @Column(nullable = false)
+    private String title;
+
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String message;
 
+    @Column(nullable = false)
+    private String status;   // PENDING, SENT, FAILED
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isRead = false;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+
     private LocalDateTime sentAt;
-    private String status;   // SENT, FAILED
+
+    private String failureReason;
+
+    // Related entity IDs for reference
+    private Long orderId;
+
+    private Long paymentId;
 }

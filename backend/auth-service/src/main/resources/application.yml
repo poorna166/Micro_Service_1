@@ -1,5 +1,7 @@
 server:
-  port: 9001
+  port: 9000
+  servlet:
+    context-path: /api
 
 spring:
   application:
@@ -10,14 +12,18 @@ spring:
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
 
   security:
     oauth2:
@@ -25,9 +31,35 @@ spring:
         jwt:
           jwk-set-uri: http://localhost:8081/realms/mobileskins/protocol/openid-connect/certs
 
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://localhost:8761/eureka/
     register-with-eureka: true
     fetch-registry: true
+    enabled: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-change-in-production-at-least-32-characters}
+  expiration: 86400000  # 24 hours in milliseconds
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.techcommerce: DEBUG

@@ -1,5 +1,7 @@
 server:
   port: 8080
+  servlet:
+    context-path: /
 
 spring:
   application:
@@ -10,69 +12,109 @@ spring:
         locator:
           enabled: true
           lower-case-service-id: true
-
+      default-filters:
+        - name: GlobalLoggingFilter
       routes:
-        # PRODUCT SERVICE
-        - id: product-service
-          uri: lb://product-service
+        # AUTH SERVICE (Public)
+        - id: auth-service
+          uri: lb://auth-service
           predicates:
-            - Path=/product/**
-
-        # PAYMENT SERVICE
-        - id: payment-service
-          uri: lb://payment-service
-          predicates:
-            - Path=/payment/**
-
-        # ORDER SERVICE
-        - id: order-service
-          uri: lb://order-service
-          predicates:
-            - Path=/order/**
+            - Path=/auth/**
+          filters:
+            - StripPrefix=0
 
         # USER SERVICE
         - id: user-service
           uri: lb://user-service
           predicates:
-            - Path=/user/**
+            - Path=/users/**
+          filters:
+            - StripPrefix=0
+            - name: JwtAuthenticationFilter
 
-        # AUTH SERVICE (public paths allowed)
-        - id: auth-service
-          uri: lb://auth-service
+        # PRODUCT SERVICE (Public Read, Protected Write)
+        - id: product-service-read
+          uri: lb://product-service
           predicates:
-            - Path=/auth/**
+            - Path=/products/**
+            - Method=GET
+          filters:
+            - StripPrefix=0
 
-        # ADMIN SERVICE
-        - id: admin-service
-          uri: lb://admin-service
+        - id: product-service-write
+          uri: lb://product-service
           predicates:
-            - Path=/admin/**
+            - Path=/products/**
+          filters:
+            - StripPrefix=0
+            - name: JwtAuthenticationFilter
 
-        # CART SERVICE
+        # CART SERVICE (Protected)
         - id: cart-service
           uri: lb://cart-service
           predicates:
-            - Path=/cart/**
+            - Path=/carts/**
+          filters:
+            - StripPrefix=0
+            - name: JwtAuthenticationFilter
+
+        # ORDER SERVICE (Protected)
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/orders/**
+          filters:
+            - StripPrefix=0
+            - name: JwtAuthenticationFilter
+
+        # PAYMENT SERVICE (Protected)
+        - id: payment-service
+          uri: lb://payment-service
+          predicates:
+            - Path=/payments/**
+          filters:
+            - StripPrefix=0
+            - name: JwtAuthenticationFilter
 
         # INVENTORY SERVICE
         - id: inventory-service
           uri: lb://inventory-service
           predicates:
             - Path=/inventory/**
+          filters:
+            - StripPrefix=0
 
-        # NOTIFICATION SERVICE
+        # NOTIFICATION SERVICE (Protected)
         - id: notification-service
           uri: lb://notification-service
           predicates:
-            - Path=/notification/**
+            - Path=/notifications/**
+          filters:
+            - StripPrefix=0
+            - name: JwtAuthenticationFilter
 
-  # security:
-  #   oauth2:
-  #     resourceserver:
-  #       jwt:
-  #         jwk-set-uri: http://localhost:8081/realms/mobileskins/protocol/openid-connect/certs
+        # ADMIN SERVICE (Protected - Admin Only)
+        - id: admin-service
+          uri: lb://admin-service
+          predicates:
+            - Path=/admin/**
+          filters:
+            - StripPrefix=0
+            - name: JwtAuthenticationFilter
+            - name: RoleBasedAccessFilter
+              args:
+                allowedRoles: ADMIN
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: false
+    fetch-registry: true
+    enabled: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG

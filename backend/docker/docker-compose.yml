@@ -1,6 +1,7 @@
 version: "3.8"
 
 services:
+  # ==================== INFRASTRUCTURE ====================
   postgres:
     image: postgres:15
     container_name: postgres
@@ -39,7 +40,71 @@ services:
       - backend
     depends_on:
       postgres:
-        condition: service_healthy 
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== MICROSERVICES ====================
+  eureka-service:
+    image: openjdk:21-jdk
+    container_name: eureka-service
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/eureka-service-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "8761:8761"
+    networks:
+      - backend
+    depends_on:
+      - rabbitmq
+
+  api-gateway:
+    image: openjdk:21-jdk
+    container_name: api-gateway
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/api-gateway-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+    depends_on:
+      - eureka-service
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+
+  config-server:
+    image: openjdk:21-jdk
+    container_name: config-server
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/config-server-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "8888:8888"
+    networks:
+      - backend
+    depends_on:
+      - eureka-service
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+
+  # ==================== DATABASES ====================
   user-mysql:
     image: mysql:latest
     container_name: user_mysql_container
@@ -53,6 +118,13 @@ services:
       - "3306:3306"
     volumes:
       - user_mysql_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   product-mysql:
     image: mysql:latest
@@ -67,6 +139,13 @@ services:
       - "3308:3306"
     volumes:
       - product_mysql_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   cart-mysql:
     image: mysql:latest
@@ -81,6 +160,13 @@ services:
       - "3309:3306"
     volumes:
       - cart_mysql_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
    
   order-mysql:
     image: mysql:latest
@@ -94,7 +180,15 @@ services:
     ports:
       - "3303:3306"
     volumes:
-      - order_mysql_data:/var/lib/mysql   
+      - order_mysql_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   inventory-mysql:
     image: mysql:latest
     container_name: inventory_mysql_container
@@ -108,6 +202,14 @@ services:
       - "3302:3306"
     volumes:
       - inventory_mysql_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   payment-mysql:
     image: mysql:latest
     container_name: payment_mysql_container
@@ -121,6 +223,14 @@ services:
       - "3301:3306"
     volumes:
       - payment_mysql_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   notification-mysql:
     image: mysql:latest
     container_name: notification_mysql_container
@@ -133,8 +243,190 @@ services:
     ports:
       - "3300:3306"
     volumes:
-      - notification_mysql_data:/var/lib/mysql                    
+      - notification_mysql_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  auth-mysql:
+    image: mysql:latest
+    container_name: auth_mysql_container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: authdb
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - "3305:3306"
+    volumes:
+      - auth_mysql_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== APPLICATION SERVICES ====================
+  auth-service:
+    image: openjdk:21-jdk
+    container_name: auth-service
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/auth-service-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "9000:9000"
+    networks:
+      - backend
+    depends_on:
+      - auth-mysql
+      - eureka-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://auth-mysql:3306/authdb
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+
+  product-service:
+    image: openjdk:21-jdk
+    container_name: product-service
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/product-service-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "9001:9001"
+    networks:
+      - backend
+    depends_on:
+      - product-mysql
+      - eureka-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://product-mysql:3306/productdb
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+
+  order-service:
+    image: openjdk:21-jdk
+    container_name: order-service
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/order-service-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "9002:9002"
+    networks:
+      - backend
+    depends_on:
+      - order-mysql
+      - eureka-service
+      - rabbitmq
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://order-mysql:3306/orderdb
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+      - SPRING_RABBITMQ_HOST=rabbitmq
+
+  payment-service:
+    image: openjdk:21-jdk
+    container_name: payment-service
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/payment-service-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "9003:9003"
+    networks:
+      - backend
+    depends_on:
+      - payment-mysql
+      - eureka-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://payment-mysql:3306/paymentdb
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+
+  inventory-service:
+    image: openjdk:21-jdk
+    container_name: inventory-service
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/inventory-service-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "9004:9004"
+    networks:
+      - backend
+    depends_on:
+      - inventory-mysql
+      - eureka-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://inventory-mysql:3306/inventorydb
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+
+  user-service:
+    image: openjdk:21-jdk
+    container_name: user-service
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/user-service-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "9005:9005"
+    networks:
+      - backend
+    depends_on:
+      - user-mysql
+      - eureka-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://user-mysql:3306/userdb
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+
+  cart-service:
+    image: openjdk:21-jdk
+    container_name: cart-service
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/cart-service-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "9006:9006"
+    networks:
+      - backend
+    depends_on:
+      - cart-mysql
+      - eureka-service
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://cart-mysql:3306/cartdb
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+
+  notification-service:
+    image: openjdk:21-jdk
+    container_name: notification-service
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/notification-service-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "9007:9007"
+    networks:
+      - backend
+    depends_on:
+      - notification-mysql
+      - eureka-service
+      - rabbitmq
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://notification-mysql:3306/notificationdb
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
+      - SPRING_RABBITMQ_HOST=rabbitmq
+
+  admin-service:
+    image: openjdk:21-jdk
+    container_name: admin-service
+    restart: always
+    working_dir: /app
+    command: sh -c "java -jar /app/admin-service-0.0.1-SNAPSHOT.jar"
+    ports:
+      - "9008:9008"
+    networks:
+      - backend
+    depends_on:
+      - eureka-service
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-service:8761/eureka/
 
 networks:
   backend:
@@ -148,3 +440,4 @@ volumes:
   inventory_mysql_data:
   payment_mysql_data:
   notification_mysql_data:
+  auth_mysql_data:

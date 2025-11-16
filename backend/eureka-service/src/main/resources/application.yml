@@ -1,0 +1,35 @@
+server:
+  port: 8761
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: eureka-service
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+  server:
+    enable-self-preservation: true
+    eviction-interval-timer-in-ms: 60000
+    renewal-percent-threshold: 0.85
+    response-cache-update-interval-ms: 30000
+    response-cache-auto-expiration-in-seconds: 180
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+
+logging:
+  level:
+    root: INFO
+    com.netflix.eureka: WARN
+    com.netflix.discovery: WARN
