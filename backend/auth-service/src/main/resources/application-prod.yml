@@ -1,0 +1,40 @@
+server:
+  port: 9000
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${JDBC_DATABASE_URL:jdbc:mysql://localhost:3306/authdb}
+    username: ${JDBC_DATABASE_USERNAME:produser}
+    password: ${JDBC_DATABASE_PASSWORD:prodpass}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+    enabled: true
+
+jwt:
+  # In production, provide secure secrets/keys via environment or Vault
+  secret: ${JWT_SECRET:change-me-in-prod}
+  expiration: 86400000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    root: INFO

@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -40,11 +41,20 @@ public class PaymentService {
      */
     public PaymentDTO processPayment(PaymentRequestDTO request) {
         log.info("Processing payment for order: {}", request.getOrderId());
-        
         try {
+            // Idempotency: if client provided an idempotency key and a payment exists, return it
+            String idemKey = request.getIdempotencyKey();
+            if (idemKey != null && !idemKey.isBlank()) {
+                Optional<Payment> existing = paymentRepository.findByIdempotencyKey(idemKey);
+                if (existing.isPresent()) {
+                    log.info("Found existing payment for idempotency key: {}", idemKey);
+                    return paymentMapper.toDTO(existing.get());
+                }
+            }
+
             // Generate transaction ID
             String transactionId = generateTransactionId();
-            
+
             // Process payment (mock implementation)
             boolean paymentSuccessful = paymentProcessor.processPayment(
                     transactionId,
@@ -66,11 +76,12 @@ public class PaymentService {
             payment.setPaymentGateway(request.getPaymentMethod());
             payment.setStatus("COMPLETED");
             payment.setCreatedAt(LocalDateTime.now());
+            payment.setIdempotencyKey(idemKey);
 
             Payment saved = paymentRepository.save(payment);
             log.info("Payment processed successfully for order: {} with transaction ID: {}", 
                     request.getOrderId(), transactionId);
-            
+
             // Publish payment processed event
             PaymentProcessedEvent event = PaymentProcessedEvent.builder()
                     .paymentId(saved.getId())
@@ -81,7 +92,7 @@ public class PaymentService {
                     .timestamp(LocalDateTime.now())
                     .build();
             eventPublisher.publishPaymentProcessed(event);
-            
+
             return paymentMapper.toDTO(saved);
         } catch (Exception e) {
             log.error("Error processing payment for order: {}", request.getOrderId(), e);
@@ -103,112 +114,112 @@ public class PaymentService {
     /**
      * Get payment by order ID
      */
-    @Transactional(readOnly = true)
-    public PaymentDTO getPaymentByOrderId(Long orderId) {
-        log.info("Fetching payment for order: {}", orderId);
-        Payment payment = paymentRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new PaymentNotFoundException("Payment not found for order: " + orderId));
-        return paymentMapper.toDTO(payment);
-    }
+    // @Transactional(readOnly = true)
+    // public PaymentDTO getPaymentByOrderId(Long orderId) {
+    //     log.info("Fetching payment for order: {}", orderId);
+    //     Payment payment = paymentRepository.findByOrderId(orderId)
+    //             .orElseThrow(() -> new PaymentNotFoundException("Payment not found for order: " + orderId));
+    //     return paymentMapper.toDTO(payment);
+    // }
 
     /**
      * Refund a payment
      */
-    public PaymentDTO refundPayment(Long paymentId) {
-        log.info("Processing refund for payment: {}", paymentId);
+    // public PaymentDTO refundPayment(Long paymentId) {
+    //     log.info("Processing refund for payment: {}", paymentId);
         
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentNotFoundException("Payment not found with ID: " + paymentId));
+    //     Payment payment = paymentRepository.findById(paymentId)
+    //             .orElseThrow(() -> new PaymentNotFoundException("Payment not found with ID: " + paymentId));
 
-        if ("REFUNDED".equals(payment.getStatus())) {
-            throw new PaymentProcessingException("Payment is already refunded");
-        }
+    //     if ("REFUNDED".equals(payment.getStatus())) {
+    //         throw new PaymentProcessingException("Payment is already refunded");
+    //     }
 
-        try {
-            // Process refund with payment processor
-            boolean refundSuccessful = paymentProcessor.refundPayment(
-                    payment.getTransactionId(),
-                    payment.getAmount()
-            );
+    //     try {
+    //         // Process refund with payment processor
+    //         boolean refundSuccessful = paymentProcessor.refundPayment(
+    //                 payment.getTransactionId(),
+    //                 payment.getAmount()
+    //         );
 
-            if (!refundSuccessful) {
-                log.error("Refund processing failed for payment: {}", paymentId);
-                throw new PaymentProcessingException("Refund processing failed");
-            }
+    //         if (!refundSuccessful) {
+    //             log.error("Refund processing failed for payment: {}", paymentId);
+    //             throw new PaymentProcessingException("Refund processing failed");
+    //         }
 
-            payment.setStatus("REFUNDED");
-            Payment refunded = paymentRepository.save(payment);
-            log.info("Payment refunded successfully: {}", paymentId);
+    //         payment.setStatus("REFUNDED");
+    //         Payment refunded = paymentRepository.save(payment);
+    //         log.info("Payment refunded successfully: {}", paymentId);
             
-            // Publish payment refunded event
-            PaymentRefundedEvent event = PaymentRefundedEvent.builder()
-                    .paymentId(refunded.getId())
-                    .orderId(refunded.getOrderId())
-                    .transactionId(refunded.getTransactionId())
-                    .amount(refunded.getAmount())
-                    .reason("Customer refund request")
-                    .timestamp(LocalDateTime.now())
-                    .build();
-            eventPublisher.publishPaymentRefunded(event);
+    //         // Publish payment refunded event
+    //         PaymentRefundedEvent event = PaymentRefundedEvent.builder()
+    //                 .paymentId(refunded.getId())
+    //                 .orderId(refunded.getOrderId())
+    //                 .transactionId(refunded.getTransactionId())
+    //                 .amount(refunded.getAmount())
+    //                 .reason("Customer refund request")
+    //                 .timestamp(LocalDateTime.now())
+    //                 .build();
+    //         eventPublisher.publishPaymentRefunded(event);
             
-            return paymentMapper.toDTO(refunded);
-        } catch (Exception e) {
-            log.error("Error refunding payment: {}", paymentId, e);
-            throw new PaymentProcessingException("Failed to refund payment: " + e.getMessage(), e);
-        }
-    }
+    //         return paymentMapper.toDTO(refunded);
+    //     } catch (Exception e) {
+    //         log.error("Error refunding payment: {}", paymentId, e);
+    //         throw new PaymentProcessingException("Failed to refund payment: " + e.getMessage(), e);
+    //     }
+    // }
 
     /**
      * Get all payments for an order range
      */
-    @Transactional(readOnly = true)
-    public List<PaymentDTO> getAllPayments() {
-        log.info("Fetching all payments");
-        return paymentRepository.findAll().stream()
-                .map(paymentMapper::toDTO)
-                .collect(Collectors.toList());
-    }
+    // @Transactional(readOnly = true)
+    // public List<PaymentDTO> getAllPayments() {
+    //     log.info("Fetching all payments");
+    //     return paymentRepository.findAll().stream()
+    //             .map(paymentMapper::toDTO)
+    //             .collect(Collectors.toList());
+    // }
 
     /**
      * Get payments by status
      */
-    @Transactional(readOnly = true)
-    public List<PaymentDTO> getPaymentsByStatus(String status) {
-        log.info("Fetching payments with status: {}", status);
-        return paymentRepository.findByStatus(status).stream()
-                .map(paymentMapper::toDTO)
-                .collect(Collectors.toList());
-    }
+    // @Transactional(readOnly = true)
+    // public List<PaymentDTO> getPaymentsByStatus(String status) {
+    //     log.info("Fetching payments with status: {}", status);
+    //     return paymentRepository.findByStatus(status).stream()
+    //             .map(paymentMapper::toDTO)
+    //             .collect(Collectors.toList());
+    // }
 
     /**
      * Get payment by transaction ID
      */
-    @Transactional(readOnly = true)
-    public PaymentDTO getPaymentByTransactionId(String transactionId) {
-        log.info("Fetching payment by transaction ID: {}", transactionId);
-        Payment payment = paymentRepository.findByTransactionId(transactionId)
-                .orElseThrow(() -> new PaymentNotFoundException("Payment not found with transaction ID: " + transactionId));
-        return paymentMapper.toDTO(payment);
-    }
+    // @Transactional(readOnly = true)
+    // public PaymentDTO getPaymentByTransactionId(String transactionId) {
+    //     log.info("Fetching payment by transaction ID: {}", transactionId);
+    //     Payment payment = paymentRepository.findByTransactionId(transactionId)
+    //             .orElseThrow(() -> new PaymentNotFoundException("Payment not found with transaction ID: " + transactionId));
+    //     return paymentMapper.toDTO(payment);
+    // }
 
     /**
      * Generate unique transaction ID
      */
-    private String generateTransactionId() {
-        return "TXN-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
-    }
-}
+//     private String generateTransactionId() {
+//         return "TXN-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
+//     }
+// }
 
     /**
      * Get payment details by ID
      */
-    @Transactional(readOnly = true)
-    public PaymentDTO getPayment(Long paymentId) {
-        log.info("Fetching payment: {}", paymentId);
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentNotFoundException("Payment not found with ID: " + paymentId));
-        return paymentMapper.toDTO(payment);
-    }
+    // @Transactional(readOnly = true)
+    // public PaymentDTO getPayment(Long paymentId) {
+    //     log.info("Fetching payment: {}", paymentId);
+    //     Payment payment = paymentRepository.findById(paymentId)
+    //             .orElseThrow(() -> new PaymentNotFoundException("Payment not found with ID: " + paymentId));
+    //     return paymentMapper.toDTO(payment);
+    // }
 
     /**
      * Get payment by order ID

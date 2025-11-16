@@ -9,7 +9,8 @@ import com.skinflex.auth_service.exception.AuthenticationException;
 import com.skinflex.auth_service.repository.UserRepository;
 import com.skinflex.auth_service.repository.RoleRepository;
 import com.skinflex.auth_service.util.JwtTokenProvider;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,23 +19,27 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Service
-@Slf4j
 @Transactional
 public class AuthenticationService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthenticationService.class);
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
+    private final com.skinflex.auth_service.repository.RefreshTokenRepository refreshTokenRepository;
 
     public AuthenticationService(UserRepository userRepository,
                                RoleRepository roleRepository,
                                JwtTokenProvider jwtTokenProvider,
-                               PasswordEncoder passwordEncoder) {
+                               PasswordEncoder passwordEncoder,
+                               com.skinflex.auth_service.repository.RefreshTokenRepository refreshTokenRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.passwordEncoder = passwordEncoder;
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     /**
@@ -76,17 +81,24 @@ public class AuthenticationService {
         log.info("User registered successfully: {}", savedUser.getUsername());
 
         // Generate tokens
-        String accessToken = jwtTokenProvider.generateToken(savedUser.getUsername(), savedUser.getEmail());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(savedUser.getUsername());
+    String accessToken = jwtTokenProvider.generateToken(savedUser.getUsername(), savedUser.getEmail());
+    String refreshToken = jwtTokenProvider.generateRefreshToken(savedUser.getUsername());
 
-        return new AuthResponse(
-                accessToken,
-                refreshToken,
-                jwtTokenProvider.getJwtExpirationMs(),
-                savedUser.getUsername(),
-                savedUser.getEmail(),
-                "User registered successfully"
-        );
+    // persist refresh token for revocation/validation
+    com.skinflex.auth_service.entity.RefreshToken rt = new com.skinflex.auth_service.entity.RefreshToken();
+    rt.setToken(refreshToken);
+    rt.setUsername(savedUser.getUsername());
+    rt.setExpiresAt(java.time.Instant.now().plusSeconds(jwtTokenProvider.getRefreshTokenExpirySeconds()));
+    refreshTokenRepository.save(rt);
+
+    return new AuthResponse(
+        accessToken,
+        refreshToken,
+        jwtTokenProvider.getJwtExpirationMs(),
+        savedUser.getUsername(),
+        savedUser.getEmail(),
+        "User registered successfully"
+    );
     }
 
     /**
@@ -109,17 +121,24 @@ public class AuthenticationService {
         log.info("User logged in successfully: {}", user.getUsername());
 
         // Generate tokens
-        String accessToken = jwtTokenProvider.generateToken(user.getUsername(), user.getEmail());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
+    String accessToken = jwtTokenProvider.generateToken(user.getUsername(), user.getEmail());
+    String refreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
 
-        return new AuthResponse(
-                accessToken,
-                refreshToken,
-                jwtTokenProvider.getJwtExpirationMs(),
-                user.getUsername(),
-                user.getEmail(),
-                "Login successful"
-        );
+    // persist refresh token
+    com.skinflex.auth_service.entity.RefreshToken rt = new com.skinflex.auth_service.entity.RefreshToken();
+    rt.setToken(refreshToken);
+    rt.setUsername(user.getUsername());
+    rt.setExpiresAt(java.time.Instant.now().plusSeconds(jwtTokenProvider.getRefreshTokenExpirySeconds()));
+    refreshTokenRepository.save(rt);
+
+    return new AuthResponse(
+        accessToken,
+        refreshToken,
+        jwtTokenProvider.getJwtExpirationMs(),
+        user.getUsername(),
+        user.getEmail(),
+        "Login successful"
+    );
     }
 
     /**
@@ -133,25 +152,38 @@ public class AuthenticationService {
      * Refresh JWT token
      */
     public AuthResponse refreshToken(String refreshToken) {
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new AuthenticationException("Invalid or expired refresh token");
-        }
+    // ensure refresh token exists in DB
+    com.skinflex.auth_service.entity.RefreshToken existing = refreshTokenRepository.findByToken(refreshToken)
+        .orElseThrow(() -> new AuthenticationException("Invalid or expired refresh token"));
 
-        String username = jwtTokenProvider.getUsernameFromToken(refreshToken);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new AuthenticationException("User not found"));
+    if (!jwtTokenProvider.validateToken(refreshToken)) {
+        // cleanup stale token
+        refreshTokenRepository.deleteByToken(refreshToken);
+        throw new AuthenticationException("Invalid or expired refresh token");
+    }
 
-        String newAccessToken = jwtTokenProvider.generateToken(user.getUsername(), user.getEmail());
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
+    String username = jwtTokenProvider.getUsernameFromToken(refreshToken);
+    User user = userRepository.findByUsername(username)
+        .orElseThrow(() -> new AuthenticationException("User not found"));
 
-        return new AuthResponse(
-                newAccessToken,
-                newRefreshToken,
-                jwtTokenProvider.getJwtExpirationMs(),
-                user.getUsername(),
-                user.getEmail(),
-                "Token refreshed successfully"
-        );
+    // rotate refresh token: delete old, create new
+    refreshTokenRepository.deleteByToken(refreshToken);
+    String newAccessToken = jwtTokenProvider.generateToken(user.getUsername(), user.getEmail());
+    String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
+    com.skinflex.auth_service.entity.RefreshToken rt = new com.skinflex.auth_service.entity.RefreshToken();
+    rt.setToken(newRefreshToken);
+    rt.setUsername(user.getUsername());
+    rt.setExpiresAt(java.time.Instant.now().plusSeconds(jwtTokenProvider.getRefreshTokenExpirySeconds()));
+    refreshTokenRepository.save(rt);
+
+    return new AuthResponse(
+        newAccessToken,
+        newRefreshToken,
+        jwtTokenProvider.getJwtExpirationMs(),
+        user.getUsername(),
+        user.getEmail(),
+        "Token refreshed successfully"
+    );
     }
 
     /**

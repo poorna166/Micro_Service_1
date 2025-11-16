@@ -195,6 +195,29 @@ public final class DtoEntityMapper {
         );
     }
 
+    // Category DTO mapping
+    public static CategoryDto mapCategoryToDto(Category category) {
+        if (category == null) return null;
+        CategoryDto dto = new CategoryDto();
+        dto.setId(category.getId());
+        dto.setName(category.getName());
+        dto.setDescription(category.getDescription());
+        return dto;
+    }
 
+    // Catalog DTO mapping
+    public static CatalogDto mapCatalogToDto(Catalog catalog) {
+        if (catalog == null) return null;
+        CatalogDto dto = new CatalogDto();
+        dto.setId(catalog.getId());
+        dto.setName(catalog.getName());
+        dto.setDescription(catalog.getDescription());
+        return dto;
+    }
+
+    // Product DTO mapping (alias for mapToProductDto for consistency)
+    public static ProductDto mapProductToDto(Product product) {
+        return mapToProductDto(product);
+    }
 
 }

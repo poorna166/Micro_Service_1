@@ -27,33 +27,35 @@ public class ProductController {
 
     // Categories
     @PostMapping("/categories")
-    public ResponseEntity<Category> createCategory(@RequestBody CategoryDto dto) {
+    public ResponseEntity<CategoryDto> createCategory(@RequestBody CategoryDto dto) {
         Category c = DtoEntityMapper.mapNewCategory(dto);
         Category created = productService.createCategory(c);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        return ResponseEntity.status(HttpStatus.CREATED).body(DtoEntityMapper.mapCategoryToDto(created));
     }
 
     @GetMapping("/categories/{id}")
-    public ResponseEntity<Category> getCategory(@PathVariable Long id) {
-        return productService.getCategory(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<CategoryDto> getCategory(@PathVariable Long id) {
+        return productService.getCategory(id).map(c -> ResponseEntity.ok(DtoEntityMapper.mapCategoryToDto(c))).orElse(ResponseEntity.notFound().build());
     }
 
     // Catalogs
     @PostMapping("/catalogs")
-    public ResponseEntity<Catalog> createCatalog(@RequestBody CatalogDto dto) {
+    public ResponseEntity<CatalogDto> createCatalog(@RequestBody CatalogDto dto) {
         Catalog c = DtoEntityMapper.mapNewCatalog(dto);
         Catalog created = productService.createCatalog(c);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        return ResponseEntity.status(HttpStatus.CREATED).body(DtoEntityMapper.mapCatalogToDto(created));
     }
 
     @GetMapping("/catalogs/{id}")
-    public ResponseEntity<Catalog> getCatalog(@PathVariable Long id) {
-        return productService.getCatalog(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<CatalogDto> getCatalog(@PathVariable Long id) {
+        return productService.getCatalog(id).map(c -> ResponseEntity.ok(DtoEntityMapper.mapCatalogToDto(c))).orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/catalogs")
-    public List<com.techcommerce.product_service.model.Catalog> listCatalogs() {
-        return productService.listCatalogs();
+    public ResponseEntity<List<CatalogDto>> listCatalogs() {
+        return ResponseEntity.ok(productService.listCatalogs().stream()
+                .map(DtoEntityMapper::mapCatalogToDto)
+                .toList());
     }
 
     // Products
@@ -64,22 +66,22 @@ public class ProductController {
     }
 
     @GetMapping("/products/{id}")
-    public ResponseEntity<Product> getProduct(@PathVariable Long id) {
-        return productService.getProduct(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ProductDto> getProduct(@PathVariable Long id) {
+        return productService.getProduct(id).map(p -> ResponseEntity.ok(DtoEntityMapper.mapProductToDto(p))).orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/categories/{categoryId}/products")
-    public Page<Product> listByCategory(@PathVariable Long categoryId,
-                                        @RequestParam(defaultValue = "0") int page,
-                                        @RequestParam(defaultValue = "20") int size) {
-        return productService.listByCategory(categoryId, page, size);
+    public Page<ProductDto> listByCategory(@PathVariable Long categoryId,
+                                           @RequestParam(defaultValue = "0") int page,
+                                           @RequestParam(defaultValue = "20") int size) {
+        return productService.listByCategory(categoryId, page, size).map(DtoEntityMapper::mapProductToDto);
     }
 
     @PutMapping("/products/{id}")
-    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody ProductDto dto) {
+    public ResponseEntity<ProductDto> updateProduct(@PathVariable Long id, @RequestBody ProductDto dto) {
         try {
             Product p = productService.updateProduct(id, dto);
-            return ResponseEntity.ok(p);
+            return ResponseEntity.ok(DtoEntityMapper.mapProductToDto(p));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }

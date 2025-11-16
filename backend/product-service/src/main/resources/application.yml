@@ -50,4 +50,11 @@ logging:
   level:
     root: INFO
     com.techcommerce: DEBUG
+
+# Springdoc API docs path so gateway can fetch product OpenAPI via /api/products/v3/api-docs
+springdoc:
+  api-docs:
+    path: /api/products/v3/api-docs
+  swagger-ui:
+    path: /api/products/swagger-ui.html
     org.springframework.web: INFO

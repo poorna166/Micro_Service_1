@@ -7,7 +7,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "payments")
+@Table(name = "payments", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"transaction_id"}),
+    @UniqueConstraint(columnNames = {"idempotency_key"})
+})
 @Data
 public class Payment {
 
@@ -23,6 +26,9 @@ public class Payment {
 
     @Column(name = "transaction_id", length = 150, nullable = false)
     private String transactionId;
+
+    @Column(name = "idempotency_key", length = 100, unique = true)
+    private String idempotencyKey;
 
     @Column(name = "amount", nullable = false)
     private BigDecimal amount;

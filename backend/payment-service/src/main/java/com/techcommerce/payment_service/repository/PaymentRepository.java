@@ -32,4 +32,9 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
      */
     @Query("SELECT p FROM Payment p WHERE p.orderId = :orderId AND p.status = :status")
     Optional<Payment> findByOrderIdAndStatus(@Param("orderId") Long orderId, @Param("status") String status);
+
+    /**
+     * Find payment by client-provided idempotency key
+     */
+    Optional<Payment> findByIdempotencyKey(String idempotencyKey);
 }

@@ -54,6 +54,12 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
     </dependency>
+	<!-- Springdoc OpenAPI UI (webflux) for centralized Swagger UI -->
+	<dependency>
+		<groupId>org.springdoc</groupId>
+		<artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+		<version>2.1.0</version>
+	</dependency>
 	</dependencies>
 	<build>
 		<plugins>

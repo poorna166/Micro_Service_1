@@ -1,14 +1,14 @@
 server:
-  port: 9003
+  port: 9001
   servlet:
     context-path: /api
 
 spring:
   application:
-    name: payment-service
+    name: product-service
   datasource:
-    url: jdbc:mysql://localhost:3301/paymentdb
-    username: user6
+    url: jdbc:mysql://localhost:3308/productdb
+    username: user2
     password: pass123
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
@@ -50,3 +50,11 @@ logging:
   level:
     root: INFO
     com.techcommerce: DEBUG
+
+# Springdoc API docs path so gateway can fetch product OpenAPI via /api/products/v3/api-docs
+springdoc:
+  api-docs:
+    path: /api/products/v3/api-docs
+  swagger-ui:
+    path: /api/products/swagger-ui.html
+    org.springframework.web: INFO

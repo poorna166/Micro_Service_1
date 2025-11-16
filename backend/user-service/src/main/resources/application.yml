@@ -50,3 +50,10 @@ logging:
   level:
     root: INFO
     com.techcommerce: DEBUG
+
+# Springdoc API docs path for gateway aggregation
+springdoc:
+  api-docs:
+    path: /api/users/v3/api-docs
+  swagger-ui:
+    path: /api/users/swagger-ui.html

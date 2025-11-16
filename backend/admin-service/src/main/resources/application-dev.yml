@@ -1,0 +1,88 @@
+server:
+  port: 9008
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: admin-service
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+    enabled: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: basic
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.techcommerce: DEBUG
+    
+# Expose OpenAPI JSON at a gateway-friendly path so API Gateway can aggregate it
+springdoc:
+  api-docs:
+    path: /api/admin/v3/api-docs
+  swagger-ui:
+    path: /api/admin/swagger-ui.html
+
+# Resilience4j default configuration for Feign clients
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+    instances:
+      productService:
+        baseConfig: default
+      orderService:
+        baseConfig: default
+      inventoryService:
+        baseConfig: default
+      cartService:
+        baseConfig: default
+      paymentService:
+        baseConfig: default
+      userService:
+        baseConfig: default
+  retry:
+    instances:
+      productService:
+        maxRetryAttempts: 2
+        waitDuration: 500ms
+      orderService:
+        maxRetryAttempts: 2
+        waitDuration: 500ms
+      default:
+        maxRetryAttempts: 1
+        waitDuration: 200ms

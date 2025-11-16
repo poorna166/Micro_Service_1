@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -26,8 +27,13 @@ public class PaymentController {
      * Process a new payment
      */
     @PostMapping("/process")
-    public ResponseEntity<PaymentDTO> processPayment(@RequestBody PaymentRequestDTO request) {
+    public ResponseEntity<PaymentDTO> processPayment(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody PaymentRequestDTO request) {
         log.info("POST /api/payments/process - Order: {}", request.getOrderId());
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            request.setIdempotencyKey(idempotencyKey);
+        }
         PaymentDTO payment = paymentService.processPayment(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(payment);
     }
