@@ -1,6 +1,45 @@
 version: "3.8"
 
 services:
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.3
+    container_name: keycloak
+    command: start-dev
+    restart: always
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_PORT: 5432
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8081:8080"
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy 
   user-mysql:
     image: mysql:latest
     container_name: user_mysql_container
@@ -96,6 +135,11 @@ services:
     volumes:
       - notification_mysql_data:/var/lib/mysql                    
 
+
+networks:
+  backend:
+    driver: bridge 
+      
 volumes:
   user_mysql_data:
   product_mysql_data:

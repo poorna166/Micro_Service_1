@@ -4,10 +4,6 @@ server:
 spring:
   application:
     name: api-gateway
-
-
-
-
   cloud:
     gateway:
       discovery:
@@ -70,11 +66,11 @@ spring:
           predicates:
             - Path=/notification/**
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: http://localhost:8081/realms/mobileskins/protocol/openid-connect/certs
+  # security:
+  #   oauth2:
+  #     resourceserver:
+  #       jwt:
+  #         jwk-set-uri: http://localhost:8081/realms/mobileskins/protocol/openid-connect/certs
 
 eureka:
   client:
