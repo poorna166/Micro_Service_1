@@ -18,7 +18,7 @@ spring:
         format_sql: true
 
 server:
-  port: 8085
+  port: 9005
 #Eureka
 eureka:
   client:
